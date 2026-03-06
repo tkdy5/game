@@ -1,1 +1,190 @@
-a
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Lucky Scratch Game</title>
+    <style>
+        :root {
+            --primary-color: #ff4757;
+            --secondary-color: #2f3542;
+            --gold: #f1c40f;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--secondary-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .container {
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .card {
+            position: relative;
+            width: 300px;
+            height: 150px;
+            background: #fff;
+            border-radius: 15px;
+            margin: 20px auto;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border: 5px solid var(--gold);
+        }
+
+        /* 削った後に見える結果の文字 */
+        .result-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            z-index: 1;
+            user-select: none;
+        }
+
+        /* 削る銀色の膜 */
+        #scratch-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .info {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        button {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .win { color: #e67e22; }
+        .lose { color: #7f8c8d; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>✨ 運試しスクラッチ ✨</h1>
+        <div class="card">
+            <div class="result-text" id="result-text">...抽選中...</div>
+            <canvas id="scratch-canvas" width="300" height="150"></canvas>
+        </div>
+        <p class="info">指やマウスで銀色の部分を削ってね！</p>
+        <button onclick="initGame()">もう一度挑戦する</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('scratch-canvas');
+        const ctx = canvas.getContext('2d');
+        const resultDisplay = document.getElementById('result-text');
+        
+        let isDrawing = false;
+
+        // ゲームの初期化
+        function initGame() {
+            // 結果をランダムに決定
+            const results = [
+                { text: "1等：100万円！", class: "win", prob: 0.05 },
+                { text: "2等：1万円", class: "win", prob: 0.15 },
+                { text: "3等：500円", class: "win", prob: 0.30 },
+                { text: "ハズレ...", class: "lose", prob: 0.50 }
+            ];
+
+            const rand = Math.random();
+            let cumulative = 0;
+            let selected = results[3];
+
+            for (const res of results) {
+                cumulative += res.prob;
+                if (rand < cumulative) {
+                    selected = res;
+                    break;
+                }
+            }
+
+            resultDisplay.textContent = selected.text;
+            resultDisplay.className = "result-text " + selected.class;
+
+            // キャンバスを銀色に塗る
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // ノイズ模様（よりスクラッチっぽく）
+            for(let i=0; i<500; i++) {
+                ctx.fillStyle = '#95a5a6';
+                ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
+            }
+        }
+
+        function scratch(e) {
+            if (!isDrawing) return;
+
+            // タッチとマウスの両方に対応
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // イベントリスナーの設定
+        canvas.addEventListener('mousedown', () => isDrawing = true);
+        canvas.addEventListener('touchstart', (e) => { isDrawing = true; e.preventDefault(); });
+        
+        window.addEventListener('mouseup', () => isDrawing = false);
+        window.addEventListener('touchend', () => isDrawing = false);
+        
+        canvas.addEventListener('mousemove', scratch);
+        canvas.addEventListener('touchmove', (e) => { scratch(e); e.preventDefault(); });
+
+        // 初回起動
+        initGame();
+    </script>
+</body>
+</html>
