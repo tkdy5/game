@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Lucky Scratch Game</title>
+    <title>超豪華！7億円スクラッチ</title>
     <style>
         :root {
-            --primary-color: #ff4757;
-            --secondary-color: #2f3542;
-            --gold: #f1c40f;
+            --gold-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            --shiny-gold: radial-gradient(circle, #fff7ad 0%, #ffa900 100%);
+            --bg-color: #1a1a1a;
         }
 
         body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: var(--secondary-color);
+            font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at center, #2c3e50 0%, #000 100%);
             color: white;
             display: flex;
             flex-direction: column;
@@ -25,31 +26,56 @@
             touch-action: none;
         }
 
+        /* 背景のキラキラアニメーション */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
         .container {
             text-align: center;
             width: 90%;
             max-width: 400px;
+            z-index: 10;
         }
 
         h1 {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 2rem;
+            margin-bottom: 5px;
+            color: #f1c40f;
+            text-shadow: 0 0 15px rgba(241, 196, 15, 0.7);
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        /* カードのデザインを豪華に */
+        .card-container {
+            position: relative;
+            padding: 15px;
+            background: var(--gold-gradient);
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(255, 169, 0, 0.5);
         }
 
         .card {
             position: relative;
             width: 300px;
-            height: 150px;
+            height: 160px;
             background: #fff;
-            border-radius: 15px;
-            margin: 20px auto;
+            border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            border: 5px solid var(--gold);
+            border: 4px solid #333;
         }
 
-        /* 削った後に見える結果の文字 */
         .result-text {
             position: absolute;
             top: 0;
@@ -57,16 +83,23 @@
             width: 100%;
             height: 100%;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: bold;
-            color: #333;
+            color: #d35400;
             z-index: 1;
             user-select: none;
+            background: #fff9e6;
         }
 
-        /* 削る銀色の膜 */
+        .result-amount {
+            font-size: 2.2rem;
+            color: #e74c3c;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
         #scratch-canvas {
             position: absolute;
             top: 0;
@@ -76,114 +109,158 @@
             touch-action: none;
         }
 
-        .info {
-            margin-top: 20px;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-
         button {
-            margin-top: 25px;
-            padding: 12px 30px;
-            font-size: 1rem;
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.2rem;
             font-weight: bold;
-            color: white;
-            background-color: var(--primary-color);
+            color: #333;
+            background: var(--shiny-gold);
             border: none;
             border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: 0.3s;
         }
 
         button:active {
-            transform: scale(0.95);
+            transform: scale(0.9);
         }
 
-        .win { color: #e67e22; }
-        .lose { color: #7f8c8d; }
+        .info {
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
 
+    <canvas class="particles" id="particle-canvas"></canvas>
+
     <div class="container">
-        <h1>✨ 運試しスクラッチ ✨</h1>
-        <div class="card">
-            <div class="result-text" id="result-text">...抽選中...</div>
-            <canvas id="scratch-canvas" width="300" height="150"></canvas>
+        <h1>DREAM SCRATCH</h1>
+        <p class="subtitle">〜 最高賞金 7億円 〜</p>
+        
+        <div class="card-container">
+            <div class="card">
+                <div class="result-text" id="result-box">
+                    <div id="result-label"></div>
+                    <div id="result-amount" class="result-amount"></div>
+                </div>
+                <canvas id="scratch-canvas" width="300" height="160"></canvas>
+            </div>
         </div>
-        <p class="info">指やマウスで銀色の部分を削ってね！</p>
-        <button onclick="initGame()">もう一度挑戦する</button>
+
+        <button onclick="initGame()">運を試す（リセット）</button>
+        <p class="info">銀色の面をこすってください</p>
     </div>
 
     <script>
         const canvas = document.getElementById('scratch-canvas');
         const ctx = canvas.getContext('2d');
-        const resultDisplay = document.getElementById('result-text');
+        const pCanvas = document.getElementById('particle-canvas');
+        const pCtx = pCanvas.getContext('2d');
         
         let isDrawing = false;
 
-        // ゲームの初期化
+        // パーティクル設定
+        let particles = [];
+        function resize() {
+            pCanvas.width = window.innerWidth;
+            pCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * pCanvas.width;
+                this.y = Math.random() * pCanvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speed = Math.random() * 1 + 0.5;
+                this.opacity = Math.random();
+            }
+            draw() {
+                pCtx.fillStyle = `rgba(241, 196, 15, ${this.opacity})`;
+                pCtx.beginPath();
+                pCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                pCtx.fill();
+            }
+            update() {
+                this.y -= this.speed;
+                if (this.y < 0) this.y = pCanvas.height;
+            }
+        }
+
+        for(let i=0; i<100; i++) particles.push(new Particle());
+
+        function animate() {
+            pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // ゲームロジック
         function initGame() {
-            // 結果をランダムに決定
-            const results = [
-                { text: "1等：100万円！", class: "win", prob: 0.05 },
-                { text: "2等：1万円", class: "win", prob: 0.15 },
-                { text: "3等：500円", class: "win", prob: 0.30 },
-                { text: "ハズレ...", class: "lose", prob: 0.50 }
-            ];
+            const rand = Math.random() * 100;
+            let label = "";
+            let amount = "";
 
-            const rand = Math.random();
-            let cumulative = 0;
-            let selected = results[3];
-
-            for (const res of results) {
-                cumulative += res.prob;
-                if (rand < cumulative) {
-                    selected = res;
-                    break;
-                }
+            if (rand < 2) { // 2%の確率
+                label = "✨ 1等 ✨";
+                amount = "7億円";
+            } else if (rand < 10) {
+                label = "2等";
+                amount = "1,000万円";
+            } else if (rand < 30) {
+                label = "3等";
+                amount = "10万円";
+            } else {
+                label = "残念";
+                amount = "ハズレ";
             }
 
-            resultDisplay.textContent = selected.text;
-            resultDisplay.className = "result-text " + selected.class;
+            document.getElementById('result-label').textContent = label;
+            document.getElementById('result-amount').textContent = amount;
 
-            // キャンバスを銀色に塗る
+            // 銀色の膜を描画
             ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = '#bdc3c7';
+            // グラデーションの銀色
+            let grad = ctx.createLinearGradient(0,0,300,160);
+            grad.addColorStop(0, '#adb5bd');
+            grad.addColorStop(0.5, '#e9ecef');
+            grad.addColorStop(1, '#adb5bd');
+            ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // ノイズ模様（よりスクラッチっぽく）
-            for(let i=0; i<500; i++) {
-                ctx.fillStyle = '#95a5a6';
-                ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
+            // 表面の模様
+            ctx.fillStyle = "rgba(0,0,0,0.05)";
+            for(let i=0; i<40; i++) {
+                ctx.fillText("SCRATCH", Math.random()*300, Math.random()*160);
             }
         }
 
         function scratch(e) {
             if (!isDrawing) return;
-
-            // タッチとマウスの両方に対応
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX || e.touches[0].clientX) - rect.left;
             const y = (e.clientY || e.touches[0].clientY) - rect.top;
 
             ctx.globalCompositeOperation = 'destination-out';
             ctx.beginPath();
-            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // イベントリスナーの設定
         canvas.addEventListener('mousedown', () => isDrawing = true);
         canvas.addEventListener('touchstart', (e) => { isDrawing = true; e.preventDefault(); });
-        
         window.addEventListener('mouseup', () => isDrawing = false);
         window.addEventListener('touchend', () => isDrawing = false);
-        
         canvas.addEventListener('mousemove', scratch);
         canvas.addEventListener('touchmove', (e) => { scratch(e); e.preventDefault(); });
 
-        // 初回起動
         initGame();
     </script>
 </body>
